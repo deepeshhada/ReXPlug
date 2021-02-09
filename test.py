@@ -297,10 +297,8 @@ def full_text_generation(
 		raise Exception("Specify discriminator")
 
 	pert_gen_tok_texts = []
-	discrim_losses = []
-	losses_in_time = []
 
-	pert_gen_tok_text, discrim_loss, loss_in_time = generate_text_pplm(
+	pert_gen_tok_text = generate_text_pplm(
 		model=model,
 		tokenizer=tokenizer,
 		context=context,
@@ -324,14 +322,11 @@ def full_text_generation(
 		kl_scale=kl_scale
 	)
 	pert_gen_tok_texts.append(pert_gen_tok_text)
-	if classifier is not None:
-		discrim_losses.append(discrim_loss.data.cpu().numpy())
-	losses_in_time.append(loss_in_time)
 
 	if device == 'cuda':
 		torch.cuda.empty_cache()
 
-	return pert_gen_tok_texts, discrim_losses, losses_in_time
+	return pert_gen_tok_texts
 
 
 def generate_text_pplm(
@@ -370,9 +365,7 @@ def generate_text_pplm(
 	unpert_discrim_loss = 0
 	loss_in_time = []
 
-	range_func = range(length)
-
-	for i in range_func:
+	for i in range(length):
 		if past is None and output_so_far is not None:
 			last = output_so_far[:, -1:]
 			if output_so_far.shape[1] > 1:
@@ -433,9 +426,7 @@ def generate_text_pplm(
 
 		# Fuse the modified model and original model
 		if perturb:
-
 			unpert_probs = F.softmax(unpert_logits[:, -1, :], dim=-1)
-
 			pert_probs = ((pert_probs ** gm_scale) * (
 					unpert_probs ** (1 - gm_scale)))  # + SMALL_CONST
 			pert_probs = top_k_filter(pert_probs, k=top_k,
@@ -462,7 +453,7 @@ def generate_text_pplm(
 			else torch.cat((output_so_far, last), dim=1)
 		)
 
-	return output_so_far, unpert_discrim_loss, loss_in_time
+	return output_so_far
 
 
 def set_generic_model_params(discrim_weights, discrim_meta):
@@ -481,9 +472,6 @@ def set_generic_model_params(discrim_weights, discrim_meta):
 
 def run_pplm_example(
 		pretrained_model="gpt2-medium",
-		cond_text="",
-		uncond=False,
-		num_samples=1,
 		discrim=None,
 		discrim_weights=None,
 		discrim_meta=None,
@@ -528,28 +516,20 @@ def run_pplm_example(
 	for param in model.parameters():
 		param.requires_grad = False
 
-	# figure out conditioning text
-	if uncond:
-		tokenized_cond_text = tokenizer.encode(
-			[tokenizer.bos_token],
-			add_special_tokens=False
-		)
-	else:
-		raw_text = cond_text
-		while not raw_text:
-			print("Did you forget to add `--cond_text`? ")
-			raw_text = input("Model prompt >>> ")
-		tokenized_cond_text = tokenizer.encode(
-			tokenizer.bos_token + raw_text,
-			add_special_tokens=False
-		)
+	# TODO: put this in a loop - get cond_text and class_label from RRCA
+	# TODO: put number of test_df reviews to generate as argument
+	class_label = -1
+	cond_text = "the lake"
+	tokenized_cond_text = tokenizer.encode(
+		tokenizer.bos_token + cond_text,
+		add_special_tokens=False
+	)
 
-	pert_gen_tok_texts, _, _ = full_text_generation(
+	pert_gen_tok_texts = full_text_generation(
 		model=model,
 		tokenizer=tokenizer,
 		context=tokenized_cond_text,
 		device=device,
-		num_samples=num_samples,
 		discrim=discrim,
 		class_label=class_label,
 		length=length,
@@ -566,15 +546,13 @@ def run_pplm_example(
 		gm_scale=gm_scale,
 		kl_scale=kl_scale
 	)
-
-	return
+	pert_gen_text = tokenizer.decode(pert_gen_tok_texts[0].tolist()[0])
+	return pert_gen_text
 
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--pretrained_model", "-M", type=str, default="gpt2-medium", help="pretrained model name")
-	parser.add_argument("--cond_text", type=str, default="The lake", help="Prefix texts to condition on")
-	parser.add_argument("--uncond", action="store_true", help="Generate from end-of-text as prefix")
 	parser.add_argument("--discrim", "-D", type=str, default=None, choices="generic", help="Discriminator to use")
 	parser.add_argument('--discrim_weights', type=str, default=None, help='Weights for the generic discriminator')
 	parser.add_argument('--discrim_meta', type=str, default=None, help='Meta information for the generic discriminator')
@@ -582,7 +560,6 @@ if __name__ == '__main__':
 	parser.add_argument("--length", type=int, default=50)
 	parser.add_argument("--stepsize", type=float, default=0.02)
 	parser.add_argument("--temperature", type=float, default=1.0)
-	parser.add_argument("--num_samples", type=int, default=1)
 	parser.add_argument("--top_k", type=int, default=10)
 	parser.add_argument("--sample", action="store_true", help="Generate from end-of-text as prefix")
 	parser.add_argument("--num_iterations", type=int, default=3)
@@ -596,5 +573,6 @@ if __name__ == '__main__':
 	parser.add_argument("--seed", type=int, default=0)
 	parser.add_argument("--no_cuda", action="store_true", help="no cuda")
 
+	# TODO: put test_df path as argument and predict ratings first
 	args = parser.parse_args()
 	run_pplm_example(**vars(args))
