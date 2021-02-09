@@ -1,19 +1,20 @@
 import argparse
 import json
 from operator import add
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
-from tqdm import trange
 from transformers import GPT2Tokenizer
 from transformers.file_utils import cached_path
 from transformers.modeling_gpt2 import GPT2LMHeadModel
 
+from utils.test_utils import create_cond_df
+
 from models.pplm_classification_head import ClassificationHead
-# from utils.generator_utils import to_var, top_k_filter, perturb_past, get_classifier
 
 PPLM_BOW = 1
 PPLM_DISCRIM = 2
@@ -472,11 +473,12 @@ def set_generic_model_params(discrim_weights, discrim_meta):
 
 def run_pplm_example(
 		pretrained_model="gpt2-medium",
-		discrim=None,
-		discrim_weights=None,
-		discrim_meta=None,
-		class_label=-1,
-		length=100,
+		discrim="generic",
+		discrim_weights="./saved_models/generator.pt",
+		discrim_meta="./saved_models/generator_meta.json",
+		dataset_path="./data",
+		rrca_weights="./saved_models/rrca.bin",
+		length=50,
 		stepsize=0.02,
 		temperature=1.0,
 		top_k=10,
@@ -498,6 +500,7 @@ def run_pplm_example(
 
 	# set the device
 	device = "cuda" if torch.cuda.is_available() and not no_cuda else "cpu"
+	eos_token = '<|endoftext|>'
 
 	set_generic_model_params(discrim_weights, discrim_meta)
 	discriminator_pretrained_model = DISCRIMINATOR_MODELS_PARAMS[discrim]["pretrained_model"]
@@ -516,48 +519,54 @@ def run_pplm_example(
 	for param in model.parameters():
 		param.requires_grad = False
 
-	# TODO: put this in a loop - get cond_text and class_label from RRCA
-	# TODO: put number of test_df reviews to generate as argument
-	class_label = -1
-	cond_text = "the lake"
-	tokenized_cond_text = tokenizer.encode(
-		tokenizer.bos_token + cond_text,
-		add_special_tokens=False
-	)
+	generated_rows = []
+	for idx, row in cond_df.iterrows():
+		class_label = row.predicted_ratings - 1
+		cond_text = row.candidate_reviews
+		tokenized_cond_text = tokenizer.encode(
+			tokenizer.bos_token + cond_text,
+			add_special_tokens=False
+		)
 
-	pert_gen_tok_texts = full_text_generation(
-		model=model,
-		tokenizer=tokenizer,
-		context=tokenized_cond_text,
-		device=device,
-		discrim=discrim,
-		class_label=class_label,
-		length=length,
-		stepsize=stepsize,
-		temperature=temperature,
-		top_k=top_k,
-		sample=sample,
-		num_iterations=num_iterations,
-		grad_length=grad_length,
-		horizon_length=horizon_length,
-		window_length=window_length,
-		decay=decay,
-		gamma=gamma,
-		gm_scale=gm_scale,
-		kl_scale=kl_scale
-	)
-	pert_gen_text = tokenizer.decode(pert_gen_tok_texts[0].tolist()[0])
-	return pert_gen_text
+		pert_gen_tok_texts = full_text_generation(
+			model=model,
+			tokenizer=tokenizer,
+			context=tokenized_cond_text,
+			device=device,
+			discrim=discrim,
+			class_label=class_label,
+			length=length,
+			stepsize=stepsize,
+			temperature=temperature,
+			top_k=top_k,
+			sample=sample,
+			num_iterations=num_iterations,
+			grad_length=grad_length,
+			horizon_length=horizon_length,
+			window_length=window_length,
+			decay=decay,
+			gamma=gamma,
+			gm_scale=gm_scale,
+			kl_scale=kl_scale
+		)
+		pert_gen_text = tokenizer.decode(pert_gen_tok_texts[0].tolist()[0])
+		pert_gen_text = pert_gen_text.splitlines()[0].lstrip(eos_token).split(eos_token, 1)[0].rstrip('\n')
+		generated_rows.append((pert_gen_text, row.true_reviews))
+	generated_df = pd.DataFrame(data=generated_rows, columns=['explanations', 'true_reviews'])
+	generated_df.to_csv(os.path.join(dataset_path, 'generated_df.csv'), index=False)
+	return
 
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--pretrained_model", "-M", type=str, default="gpt2-medium", help="pretrained model name")
-	parser.add_argument("--discrim", "-D", type=str, default=None, choices="generic", help="Discriminator to use")
-	parser.add_argument('--discrim_weights', type=str, default=None, help='Weights for the generic discriminator')
-	parser.add_argument('--discrim_meta', type=str, default=None, help='Meta information for the generic discriminator')
-	parser.add_argument("--class_label", type=int, default=-1, help="Class label used for the discriminator")
+	parser.add_argument("--discrim", "-D", type=str, default="generic", choices="generic", help="Discriminator to use")
+	parser.add_argument("--dataset_path", type=str, default="./data", help="Root path of test_df")
+	parser.add_argument('--discrim_weights', type=str, default="./saved_models/generator.pt", help='Weights for discriminator')
+	parser.add_argument('--discrim_meta', type=str, default="./saved_models/generator_meta.json", help='Meta information for discriminator')
+	parser.add_argument('--rrca_weights', type=str, default="./saved_models/rrca.bin", help='Meta information for discriminator')
 	parser.add_argument("--length", type=int, default=50)
+	parser.add_argument("--num_reviews", type=int, default=15)
 	parser.add_argument("--stepsize", type=float, default=0.02)
 	parser.add_argument("--temperature", type=float, default=1.0)
 	parser.add_argument("--top_k", type=int, default=10)
@@ -573,6 +582,7 @@ if __name__ == '__main__':
 	parser.add_argument("--seed", type=int, default=0)
 	parser.add_argument("--no_cuda", action="store_true", help="no cuda")
 
-	# TODO: put test_df path as argument and predict ratings first
+	# TODO: put test_df path as argument and predict ratings, batch_size first
 	args = parser.parse_args()
-	run_pplm_example(**vars(args))
+	cond_df = create_cond_df(args.dataset_path, args.rrca_weights, args.num_reviews)
+	# run_pplm_example(**vars(args))
