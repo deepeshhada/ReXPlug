@@ -7,7 +7,15 @@ import zipfile
 import string
 import pickle
 import requests
+import math
 from tqdm import tqdm
+import pandas as pd
+
+
+def filter_classes(rating):
+	def clamp(n):
+		return max(1, min(n, 5))
+	return clamp(math.ceil(rating))
 
 
 def download_file_from_google_drive(id, destination):
@@ -31,17 +39,40 @@ def get_confirm_token(response):
 def save_response_content(response, destination):
 	CHUNK_SIZE = 32768
 	with open(destination, "wb") as f:
-		for chunk in tqdm(response.iter_content(CHUNK_SIZE)):
-			if chunk: # filter out keep-alive new chunks
+		for chunk in tqdm(response.iter_content(CHUNK_SIZE), position=0, leave=False):
+			if chunk:
 				f.write(chunk)
 
 
 def download_files(dataset_name="AmazonDigitalMusic", split_idx="1"):
-	# TODO: load pickled split map
-	# TODO: Get file_id and destination path from pickled dict
-	file_id = '1fiiqvpXgy21qBzvU0zTN8mxTHgFIZYoM'
-	destination = 'dataset.zip'
-	download_file_from_google_drive(file_id, destination)
+	with open('./pickled_meta/preprocessed_file_urls.pkl', 'rb') as f:
+		split_map = pickle.load(f)
+
+	for key, value in split_map[dataset_name][split_idx].items():
+		print(f'Downloading {key}')
+		destination = os.path.join('./data', key)
+		file_id = value
+		download_file_from_google_drive(file_id, destination)
+
+
+def create_discrim_tsv():
+	print('Creating training data for Discriminator.')
+	train_df = pd.read_csv("./data/train_df.csv")
+	val_df = pd.read_csv("./data/val_df.csv")
+	df = pd.concat([train_df, val_df])
+	df = df[['rating', 'review']]
+	df.columns = ['class', 'text']
+
+	df['class'] = df['class'].apply(filter_classes)
+
+	drop_quantity = min(list(df['class'].value_counts())) * 3
+	for rating in df['class'].unique():
+		df = df.drop(df[df['class'] == rating].index[drop_quantity:])
+		df.reset_index(drop=True, inplace=True)
+
+	df = df.sample(frac=1)
+	df.reset_index(drop=True, inplace=True)
+	df.to_csv('./data/discrim_train.tsv', sep='\t', index=False, header=False)
 
 
 if __name__ == "__main__":
@@ -51,8 +82,17 @@ if __name__ == "__main__":
 		"--dataset_name",
 		type=str,
 		default="AmazonDigitalMusic",
-		help="Name of the dataset to use. Select one from AmazonDigitalMusic, AmazonVideoGames, AmazonClothing, Yelp_1, Yelp_2, BeerAdvocate."
+		choices=("AmazonDigitalMusic", "AmazonVideoGames", "AmazonClothing", "Yelp_1", "Yelp_2", "BeerAdvocate"),
+		help="Name of the dataset to use."
 	)
-	parser.add_argument("--split_idx", type=str, default="1", help="Five splits are available for each dataset.")
+	parser.add_argument(
+		"--split_idx",
+		type=str,
+		default="1",
+		choices=("1", "2", "3", "4", "5"),
+		help="Five splits are available for each dataset. Note that argument is string and not int."
+	)
 	args = parser.parse_args()
 	download_files(**(vars(args)))
+	create_discrim_tsv()
+	print('Preprocessed!')

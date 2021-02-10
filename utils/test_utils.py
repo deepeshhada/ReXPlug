@@ -62,16 +62,17 @@ def clamp(n):
 	return max(1, min(n, 5))
 
 
-def create_cond_df(dataset_path, rrca_weights, num_reviews=10):
+def create_cond_df(dataset_name, dataset_path, rrca_weights, num_reviews=10):
 	device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 	with open(os.path.join(dataset_path, 'plain_item_reviews_dict.pkl'), 'rb') as f:
 		plain_item_reviews_dict = pickle.load(f)
 	test_df = pd.read_csv(os.path.join(dataset_path, 'test_df.csv'))
 	test_loader = get_test_loader(dataset_path, test_df)
 
-	# TODO: get num_users and num_items from pickled file
-	num_users = 5561
-	num_items = 3568
+	with open('./pickled_meta/dataset_meta.pkl', 'rb') as f:
+		dataset_meta = pickle.load(f)
+	num_users = dataset_meta[dataset_name]['num_users']
+	num_items = dataset_meta[dataset_name]['num_items']
 	num_factors = 64
 	num_layers = 3
 	sentence_embed_dim = 512

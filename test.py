@@ -492,7 +492,8 @@ def run_pplm_example(
 		gm_scale=0.9,
 		kl_scale=0.01,
 		seed=0,
-		no_cuda=False
+		no_cuda=False,
+		dataset_name="AmazonDigitalMusic"
 ):
 	# set Random seed
 	torch.manual_seed(seed)
@@ -581,8 +582,14 @@ if __name__ == '__main__':
 	parser.add_argument("--kl_scale", type=float, default=0.01)
 	parser.add_argument("--seed", type=int, default=0)
 	parser.add_argument("--no_cuda", action="store_true", help="no cuda")
+	parser.add_argument(
+		"--dataset_name",
+		type=str,
+		default="AmazonDigitalMusic",
+		choices=("AmazonDigitalMusic", "AmazonVideoGames", "AmazonClothing", "Yelp_1", "Yelp_2", "BeerAdvocate"),
+		help="Name of the dataset to use."
+	)
 
-	# TODO: put test_df path as argument and predict ratings, batch_size first
 	args = parser.parse_args()
-	cond_df = create_cond_df(args.dataset_path, args.rrca_weights, args.num_reviews)
+	cond_df = create_cond_df(args.dataset_name, args.dataset_path, args.rrca_weights, args.num_reviews)
 	# run_pplm_example(**vars(args))
