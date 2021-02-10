@@ -324,6 +324,7 @@ def train_discriminator(
 ):
 	device = "cuda" if torch.cuda.is_available() and not no_cuda else "cpu"
 	add_eos_token = pretrained_model.startswith("gpt2")
+	dataset = "generic"
 
 	if save_model:
 		if not os.path.exists(output_fp):
@@ -473,6 +474,9 @@ def train_discriminator(
 	print("Min loss: {} - Epoch: {}".format(min_loss, min_loss_epoch))
 	print("Max acc: {} - Epoch: {}".format(max_acc, max_acc_epoch))
 
+	# TODO: rename best epoch model as generator.pt and delete the rest
+	# TODO: rename meta file as generator_meta.json
+
 	return discriminator, discriminator_meta
 
 
@@ -507,12 +511,12 @@ if __name__ == "__main__":
 		description="Train a discriminator on top of GPT-2 representations")
 	parser.add_argument("--dataset_fp", type=str, default="./data/discrim_train.tsv", help=".tsv path dataset.")
 	parser.add_argument("--pretrained_model", type=str, default="gpt2-medium", help="Pretrained model to use as encoder")
-	parser.add_argument("--epochs", type=int, default=10, metavar="N", help="Number of training epochs")
+	parser.add_argument("--epochs", type=int, default=2, metavar="N", help="Number of training epochs")
 	parser.add_argument("--learning_rate", type=float, default=0.002, help="Learning rate")
 	parser.add_argument("--batch_size", type=int, default=64, metavar="N", help="input batch size for training")
 	parser.add_argument("--log_interval", type=int, default=10, metavar="N", help="Logging training status")
 	parser.add_argument("--save_model", action="store_true", help="whether to save the model")
-	parser.add_argument("--output_fp", default=".", help="path to save the output to")
+	parser.add_argument("--output_fp", default="./saved_models/", help="path to save the output to")
 	args = parser.parse_args()
 
 	train_discriminator(**(vars(args)))
