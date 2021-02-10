@@ -48,17 +48,19 @@ def train_rrca(
 	model="rrca",
 	batch_size_rrca=256,
 	learning_rate_rrca=0.002,
-	num_factors=64,
-	num_layers=3,
-	num_epochs_rrca=150
+	num_epochs_rrca=150,
+	dataset_name="AmazonDigitalMusic"
 ):
-	# TODO: get num_users and num_items from pickled file
-	num_users = 5561
-	num_items = 3568
-
-	model_save_path = os.path.join(model_save_path, model + '.bin')
+	with open('./pickled_meta/dataset_meta.pkl', 'rb') as f:
+		dataset_meta = pickle.load(f)
+	num_users = dataset_meta[dataset_name]['num_users']
+	num_items = dataset_meta[dataset_name]['num_items']
+	num_factors = 64
+	num_layers = 3
 	sentence_embed_dim = 512
 	embed_dim = num_factors * (2 ** (num_layers - 1))
+
+	model_save_path = os.path.join(model_save_path, model + '.bin')
 	device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 	# Prepare data_loaders
@@ -158,8 +160,13 @@ if __name__ == "__main__":
 	parser.add_argument("--model", type=str, default="rrca", help="Choose from 'rrca' or 'rr'.")
 	parser.add_argument("--batch_size_rrca", type=int, default=256, help="Batch size to train RRCA.")
 	parser.add_argument("--learning_rate_rrca", type=int, default=0.002, help="Learning rate for RRCA.")
-	parser.add_argument("--num_factors", type=int, default=64, help="User, item embedding sizes.")
-	parser.add_argument("--num_layers", type=int, default=3, help="Number of layers in predictor, F_P.")
 	parser.add_argument("--num_epochs_rrca", type=int, default=150, help="Number of epochs to train RRCA.")
+	parser.add_argument(
+		"--dataset_name",
+		type=str,
+		default="AmazonDigitalMusic",
+		choices=("AmazonDigitalMusic", "AmazonVideoGames", "AmazonClothing", "Yelp_1", "Yelp_2", "BeerAdvocate"),
+		help="Name of the dataset to use."
+	)
 	args = parser.parse_args()
 	train_rrca(**(vars(args)))
