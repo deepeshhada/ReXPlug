@@ -1,5 +1,6 @@
-import numpy as np
 import torch
+import numpy as np
+np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 
 
 class CollateTest:
