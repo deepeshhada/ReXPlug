@@ -1,6 +1,10 @@
 # ReXPlug
 ## Explainable Recommendation using Plug and Play Language Model
 
+A [Google Colab](https://colab.research.google.com/drive/1mSkbVKV7Jqu0UfrkgDKVpXKxA8gsQaxH?usp=sharing) notebook is available for demonstration.
+
+------------
+
 #### Preprocessing
 Preprocessing currently downloads the already preprocessed splits and files needed for training ReXPlug. Following is an example:
 
