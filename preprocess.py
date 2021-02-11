@@ -59,8 +59,8 @@ def download_files(dataset_name="AmazonDigitalMusic", split_idx="1"):
 		download_file_from_google_drive(file_id, destination)
 
 
-def create_discrim_tsv(dataset_name="AmazonDigitalMusic"):
-	print('Creating training data for Discriminator.')
+def create_discrim_tsv(dataset_name="AmazonDigitalMusic", truncate_after=100000):
+	print('Creating training data for Discriminator...')
 	root_path = os.path.join("./data", dataset_name)
 	train_df = pd.read_csv(os.path.join(root_path, 'train_df.csv'))
 	val_df = pd.read_csv(os.path.join(root_path, 'val_df.csv'))
@@ -77,6 +77,7 @@ def create_discrim_tsv(dataset_name="AmazonDigitalMusic"):
 
 	df = df.sample(frac=1)
 	df.reset_index(drop=True, inplace=True)
+	df = df.truncate(after=truncate_after)
 	df.to_csv(os.path.join(root_path, 'discrim_train.tsv'), sep='\t', index=False, header=False)
 
 
@@ -97,7 +98,13 @@ if __name__ == "__main__":
 		choices=("1", "2", "3", "4", "5"),
 		help="Five splits are available for each dataset. Note that argument is string and not int."
 	)
+	parser.add_argument(
+		"--truncate_after",
+		type=int,
+		default=100000,
+		help="Max number of examples for discriminator training."
+	)
 	args = parser.parse_args()
-	download_files(**(vars(args)))
-	create_discrim_tsv(args.dataset_name)
+	download_files(args.dataset_name, args.split_idx)
+	create_discrim_tsv(args.dataset_name, args.truncate_after)
 	print('Preprocessed!')
