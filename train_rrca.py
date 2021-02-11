@@ -170,7 +170,7 @@ if __name__ == "__main__":
 	)
 	args = parser.parse_args()
 
-	root_path = os.path.join("./data", dataset_name)
+	root_path = os.path.join(args.dataset_path, args.dataset_name)
 	if not os.path.exists(root_path):
 		os.makedirs(root_path)
 	train_rrca(**(vars(args)))
