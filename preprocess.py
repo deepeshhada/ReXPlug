@@ -48,17 +48,22 @@ def download_files(dataset_name="AmazonDigitalMusic", split_idx="1"):
 	with open('./pickled_meta/preprocessed_file_urls.pkl', 'rb') as f:
 		split_map = pickle.load(f)
 
+	root_path = os.path.join("./data", dataset_name)
+	if not os.path.exists(root_path):
+		os.makedirs(root_path)
+
 	for key, value in split_map[dataset_name][split_idx].items():
 		print(f'Downloading {key}')
-		destination = os.path.join('./data', key)
+		destination = os.path.join(root_path, key)
 		file_id = value
 		download_file_from_google_drive(file_id, destination)
 
 
-def create_discrim_tsv():
+def create_discrim_tsv(dataset_name="AmazonDigitalMusic"):
 	print('Creating training data for Discriminator.')
-	train_df = pd.read_csv("./data/train_df.csv")
-	val_df = pd.read_csv("./data/val_df.csv")
+	root_path = os.path.join("./data", dataset_name)
+	train_df = pd.read_csv(os.path.join(root_path, 'train_df.csv'))
+	val_df = pd.read_csv(os.path.join(root_path, 'val_df.csv'))
 	df = pd.concat([train_df, val_df])
 	df = df[['rating', 'review']]
 	df.columns = ['class', 'text']
@@ -72,7 +77,7 @@ def create_discrim_tsv():
 
 	df = df.sample(frac=1)
 	df.reset_index(drop=True, inplace=True)
-	df.to_csv('./data/discrim_train.tsv', sep='\t', index=False, header=False)
+	df.to_csv(os.path.join(root_path, 'discrim_train.tsv'), sep='\t', index=False, header=False)
 
 
 if __name__ == "__main__":
@@ -94,5 +99,5 @@ if __name__ == "__main__":
 	)
 	args = parser.parse_args()
 	download_files(**(vars(args)))
-	create_discrim_tsv()
+	create_discrim_tsv(args.dataset_name)
 	print('Preprocessed!')
