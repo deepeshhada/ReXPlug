@@ -309,6 +309,7 @@ def run_pplm_example(
 		generated_rows.append((pert_gen_text, row.true_reviews))
 	generated_df = pd.DataFrame(data=generated_rows, columns=['explanations', 'true_reviews'])
 	generated_df.to_csv(os.path.join(dataset_path, 'generated_df.csv'), index=False)
+	print('Generated Explanations!')
 	return
 
 
