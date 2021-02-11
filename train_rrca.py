@@ -109,7 +109,7 @@ def train_rrca(
 		num_layers=num_layers
 	).to(device)
 
-	optimizer = optim.Adam(model.parameters(), lr=learning_rate_rrca, weight_decay=0.000001)
+	optimizer = optim.Adam(model.parameters(), lr=learning_rate_rrca)
 	loss_function = nn.MSELoss()
 	losses_overall, losses_rating_pred, losses_att, losses_reg = [], [], [], []
 	val_mses, val_maes = [], []
