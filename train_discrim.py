@@ -327,7 +327,7 @@ def train_discriminator(
 	dataset_fp = os.path.join(dataset_fp, dataset_name, 'discrim_train.tsv')
 	output_fp = os.path.join(output_fp, dataset_name)
 
-	device = "cuda" if torch.cuda.is_available() and not no_cuda else "cpu"
+	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 	add_eos_token = pretrained_model.startswith("gpt2")
 
 	if save_model:
