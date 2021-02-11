@@ -57,10 +57,9 @@ def train_one_epoch(model, train_loader, val_loader, loss_function, optimizer, e
 
 	total_time = timer_end - timer_start
 	if total_time > 3600:
-		print(f'\033[4mEpoch {epoch}\033[0m ({time.strftime("%H:%M:%S", time.gmtime(total_time))}):')
+		print(f'\033[4mEpoch {epoch}\033[0m ({time.strftime("%H:%M:%S", time.gmtime(total_time))}) |', end=' ')
 	else:
-		print(f'\033[4mEpoch {epoch}\033[0m ({time.strftime("%M:%S", time.gmtime(total_time))}):')
-	print(f'\t Overall Train MSE: {epoch_loss_rating_pred:.6f}'.expandtabs(4))
-	print(f"\t Val MSE: {val_mse:.6f} | Val MAE: {val_mae:.6f}".expandtabs(4))
+		print(f'\033[4mEpoch {epoch}\033[0m ({time.strftime("%M:%S", time.gmtime(total_time))}) |', end=' ')
+	print(f'Train MSE: {epoch_loss_rating_pred:.6f} | Validation MSE: {val_mse:.6f}')
 
 	return epoch_loss_overall, epoch_loss_rating_pred, epoch_loss_att, epoch_loss_reg, val_mse, val_mae
