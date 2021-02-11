@@ -60,7 +60,8 @@ def train_rrca(
 	sentence_embed_dim = 512
 	embed_dim = num_factors * (2 ** (num_layers - 1))
 
-	model_save_path = os.path.join(model_save_path, model + '.bin')
+	model_save_path = os.path.join(model_save_path, dataset_name, model + '.pt')
+	dataset_path = os.path.join(dataset_path, dataset_name)
 	device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 	# Prepare data_loaders
@@ -155,7 +156,7 @@ def train_rrca(
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description="Train ReXPlug.")
 	parser.add_argument("--dataset_path", type=str, default="./data", help="Root folder path of preprocessed dataset.")
-	parser.add_argument("--model_save_path", type=str, default="./saved_models", help="Path to save RRCA's model.")
+	parser.add_argument("--model_save_path", type=str, default="./saved_models", help="Root path to save RRCA's model.")
 	parser.add_argument("--model", type=str, default="rrca", help="Choose from 'rrca' or 'rr'.")
 	parser.add_argument("--batch_size_rrca", type=int, default=256, help="Batch size to train RRCA.")
 	parser.add_argument("--learning_rate_rrca", type=int, default=0.002, help="Learning rate for RRCA.")

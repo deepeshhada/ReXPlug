@@ -7,9 +7,10 @@ import argparse
 import csv
 import json
 import math
-import numpy as np
 import os
+import glob
 import time
+import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.optim
@@ -312,31 +313,30 @@ def get_generic_dataset(dataset_fp, tokenizer, device, idx2class=None, add_eos_t
 
 
 def train_discriminator(
-		dataset_fp=None,
+		dataset_fp='./data',
 		pretrained_model="gpt2-medium",
-		epochs=10,
+		epochs=3,
 		learning_rate=0.002,
 		batch_size=64,
 		log_interval=10,
 		cached=False,
-		save_model=False,
-		output_fp='.'
+		save_model=True,
+		output_fp='./saved_models',
+		dataset_name='AmazonDigitalMusic'
 ):
+	dataset_fp = os.path.join(dataset_fp, dataset_name, 'discrim_train.tsv')
+	output_fp = os.path.join(output_fp, dataset_name)
+
 	device = "cuda" if torch.cuda.is_available() and not no_cuda else "cpu"
 	add_eos_token = pretrained_model.startswith("gpt2")
-	dataset = "generic"
 
 	if save_model:
 		if not os.path.exists(output_fp):
 			os.makedirs(output_fp)
-	classifier_head_meta_fp = os.path.join(
-		output_fp, "{}_classifier_head_meta.json".format(dataset)
-	)
-	classifier_head_fp_pattern = os.path.join(
-		output_fp, "{}_classifier_head_epoch".format(dataset) + "_{}.pt"
-	)
+	classifier_head_meta_fp = os.path.join(output_fp, "generator_meta.json")
+	classifier_head_fp_pattern = os.path.join(output_fp, "generator_epoch_{}.pt")
 
-	print("Preprocessing {} dataset...".format(dataset))
+	print("Preprocessing {} dataset...".format(dataset_name))
 	start = time.time()
 
 	if dataset_fp is None:
@@ -451,10 +451,6 @@ def train_discriminator(
 			predict(example_sentences[i], discriminator, idx2class, cached=cached, device=device)
 
 		if save_model:
-			# torch.save(discriminator.state_dict(),
-			#           "{}_discriminator_{}.pt".format(
-			#               args.dataset, epoch + 1
-			#               ))
 			torch.save(discriminator.get_classifier().state_dict(), classifier_head_fp_pattern.format(epoch + 1))
 
 	min_loss = float("inf")
@@ -474,8 +470,12 @@ def train_discriminator(
 	print("Min loss: {} - Epoch: {}".format(min_loss, min_loss_epoch))
 	print("Max acc: {} - Epoch: {}".format(max_acc, max_acc_epoch))
 
-	# TODO: rename best epoch model as generator.pt and delete the rest
-	# TODO: rename meta file as generator_meta.json
+	os.rename(
+		os.path.join(output_fp, f'generator_epoch_{min_loss_epoch}.pt'),
+		os.path.join(output_fp, 'generator.pt')
+	)
+	for filename in glob.glob(os.path.join(output_fp, "generator_epoch_*")):
+		os.remove(filename)
 
 	return discriminator, discriminator_meta
 
@@ -507,16 +507,22 @@ def load_discriminator(weights_path, meta_path, device='cpu'):
 
 
 if __name__ == "__main__":
-	parser = argparse.ArgumentParser(
-		description="Train a discriminator on top of GPT-2 representations")
-	parser.add_argument("--dataset_fp", type=str, default="./data/discrim_train.tsv", help=".tsv path dataset.")
+	parser = argparse.ArgumentParser(description="Train a discriminator on top of GPT-2 representations")
+	parser.add_argument("--dataset_fp", type=str, default="./data", help=".tsv path dataset.")
 	parser.add_argument("--pretrained_model", type=str, default="gpt2-medium", help="Pretrained model to use as encoder")
 	parser.add_argument("--epochs", type=int, default=2, metavar="N", help="Number of training epochs")
 	parser.add_argument("--learning_rate", type=float, default=0.002, help="Learning rate")
 	parser.add_argument("--batch_size", type=int, default=64, metavar="N", help="input batch size for training")
 	parser.add_argument("--log_interval", type=int, default=10, metavar="N", help="Logging training status")
 	parser.add_argument("--save_model", action="store_true", help="whether to save the model")
-	parser.add_argument("--output_fp", default="./saved_models/", help="path to save the output to")
-	args = parser.parse_args()
+	parser.add_argument("--output_fp", default="./saved_models", help="path to save the output to")
+	parser.add_argument(
+		"--dataset_name",
+		type=str,
+		default="AmazonDigitalMusic",
+		choices=("AmazonDigitalMusic", "AmazonVideoGames", "AmazonClothing", "Yelp_1", "Yelp_2", "BeerAdvocate"),
+		help="Name of the dataset to use."
+	)
 
+	args = parser.parse_args()
 	train_discriminator(**(vars(args)))

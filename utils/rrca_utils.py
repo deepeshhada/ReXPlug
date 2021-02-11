@@ -46,7 +46,6 @@ def train_one_epoch(model, train_loader, val_loader, loss_function, optimizer, e
 		epoch_loss_rating_pred.append(loss1.item())
 		epoch_loss_att.append(loss2.item())
 		epoch_loss_reg.append(loss3.item())
-	timer_end = time.time()
 
 	epoch_loss_overall = np.mean(epoch_loss_overall)
 	epoch_loss_rating_pred = np.mean(epoch_loss_rating_pred)
@@ -54,8 +53,13 @@ def train_one_epoch(model, train_loader, val_loader, loss_function, optimizer, e
 	epoch_loss_reg = np.mean(epoch_loss_reg)
 
 	val_mse, val_mae = evaluate(model, val_loader, device)
+	timer_end = time.time()
 
-	print(f'\033[4mEpoch {epoch}\033[0m ({time.strftime("%M:%S", time.gmtime(timer_end - timer_start))}):')
+	total_time = timer_end - timer_start
+	if total_time > 3600:
+		print(f'\033[4mEpoch {epoch}\033[0m ({time.strftime("%H:%M:%S", time.gmtime(total_time))}):')
+	else:
+		print(f'\033[4mEpoch {epoch}\033[0m ({time.strftime("%M:%S", time.gmtime(total_time))}):')
 	print(f'\t Overall Train MSE: {epoch_loss_rating_pred:.6f}'.expandtabs(4))
 	print(f"\t Val MSE: {val_mse:.6f} | Val MAE: {val_mae:.6f}".expandtabs(4))
 
