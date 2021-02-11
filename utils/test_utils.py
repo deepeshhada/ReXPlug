@@ -64,8 +64,13 @@ def clamp(n):
 
 def create_cond_df(dataset_name, dataset_path, rrca_weights, num_reviews=10):
 	device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-	with open(os.path.join(dataset_path, 'plain_item_reviews_dict.pkl'), 'rb') as f:
-		plain_item_reviews_dict = pickle.load(f)
+	print("Getting conditional text for language model from Cross-Attention network.")
+	try:
+		with open(os.path.join(dataset_path, 'plain_item_reviews_dict.pkl'), 'rb') as f:
+			plain_item_reviews_dict = pickle.load(f)
+	except:
+		print("Can't find pickled reviews! Make sure you have all the data in place. Exiting...")
+		return
 	test_df = pd.read_csv(os.path.join(dataset_path, 'test_df.csv'))
 	test_loader = get_test_loader(dataset_path, test_df)
 
@@ -92,10 +97,10 @@ def create_cond_df(dataset_name, dataset_path, rrca_weights, num_reviews=10):
 		num_factors=num_factors,
 		num_layers=num_layers
 	).to(device)
-	print('Loading model now.')
+	print('Loading model...')
 	best_model.load_state_dict(torch.load(rrca_weights))
 
-	for idx, data in enumerate(tqdm(test_loader)):
+	for idx, data in enumerate(test_loader):
 		if cnt >= num_reviews:
 			break
 		users, items, reviews, ratings, user_reviews, item_reviews, user_key_mask, item_key_mask = tuple(
@@ -128,6 +133,7 @@ def create_cond_df(dataset_name, dataset_path, rrca_weights, num_reviews=10):
 				cnt += 1
 			except:
 				continue
+		print(f'Written {cnt} records.')
 		df = pd.DataFrame(data=rows, columns=['true_reviews', 'true_ratings', 'candidate_reviews', 'predicted_ratings'])
 		df.to_csv(os.path.join(dataset_path, 'cond_df.csv'), index=False)
 	return df

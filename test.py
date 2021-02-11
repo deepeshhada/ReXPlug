@@ -1,4 +1,5 @@
 import argparse
+import os
 import json
 from operator import add
 from typing import Optional, Tuple, Union
@@ -133,7 +134,6 @@ def perturb_past(
 			hidden,
 			dim=1
 		).detach()
-		# TODO: Check the layer-norm consistency of this with trained discriminator (Sumanth)
 		logits = all_logits[:, -1, :]
 		probs = F.softmax(logits, dim=-1)
 
@@ -142,7 +142,6 @@ def perturb_past(
 
 		if loss_type == PPLM_DISCRIM or loss_type == PPLM_BOW_DISCRIM:
 			ce_loss = torch.nn.CrossEntropyLoss()
-			# TODO why we need to do this assignment and not just using unpert_past? (Sumanth)
 			curr_unpert_past = unpert_past
 			curr_probs = torch.unsqueeze(probs, dim=1)
 			wte = model.resize_token_embeddings()
@@ -222,6 +221,95 @@ def perturb_past(
 	pert_past = list(map(add, past, grad_accumulator))
 
 	return pert_past, new_accumulated_hidden, grad_norms, loss_per_iter
+
+
+def run_pplm_example(
+		pretrained_model="gpt2-medium",
+		discrim="generic",
+		dataset_path="./data/AmazonDigitalMusic",
+		models_path='./saved_models',
+		discrim_weights="./saved_models/AmazonDigitalMusic/generator.pt",
+		discrim_meta="./saved_models/AmazonDigitalMusic/generator_meta.json",
+		rrca_weights="./saved_models/AmazonDigitalMusic/rrca.pt",
+		length=50,
+		stepsize=0.02,
+		temperature=1.0,
+		top_k=10,
+		sample=True,
+		num_iterations=3,
+		grad_length=10000,
+		horizon_length=1,
+		window_length=0,
+		decay=False,
+		gamma=1.5,
+		gm_scale=0.9,
+		kl_scale=0.01,
+		seed=0,
+		no_cuda=False,
+		dataset_name="AmazonDigitalMusic",
+		num_reviews=15
+):
+	# set Random seed
+	torch.manual_seed(seed)
+	np.random.seed(seed)
+
+	# set the device
+	device = "cuda" if torch.cuda.is_available() and not no_cuda else "cpu"
+	eos_token = '<|endoftext|>'
+
+	set_generic_model_params(discrim_weights, discrim_meta)
+	discriminator_pretrained_model = DISCRIMINATOR_MODELS_PARAMS[discrim]["pretrained_model"]
+
+	if pretrained_model != discriminator_pretrained_model:
+		pretrained_model = discriminator_pretrained_model
+
+	# load pretrained model
+	model = GPT2LMHeadModel.from_pretrained(pretrained_model, output_hidden_states=True).to(device)
+	model.eval()
+
+	# load tokenizer
+	tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model)
+
+	# Freeze GPT-2 weights
+	for param in model.parameters():
+		param.requires_grad = False
+
+	generated_rows = []
+	for idx, row in cond_df.iterrows():
+		class_label = row.predicted_ratings - 1
+		cond_text = row.candidate_reviews
+		tokenized_cond_text = tokenizer.encode(
+			tokenizer.bos_token + cond_text,
+			add_special_tokens=False
+		)
+
+		pert_gen_tok_texts = full_text_generation(
+			model=model,
+			tokenizer=tokenizer,
+			context=tokenized_cond_text,
+			device=device,
+			discrim=discrim,
+			class_label=class_label,
+			length=length,
+			stepsize=stepsize,
+			temperature=temperature,
+			top_k=top_k,
+			sample=sample,
+			num_iterations=num_iterations,
+			grad_length=grad_length,
+			horizon_length=horizon_length,
+			window_length=window_length,
+			decay=decay,
+			gamma=gamma,
+			gm_scale=gm_scale,
+			kl_scale=kl_scale
+		)
+		pert_gen_text = tokenizer.decode(pert_gen_tok_texts[0].tolist()[0])
+		pert_gen_text = pert_gen_text.splitlines()[0].lstrip(eos_token).split(eos_token, 1)[0].rstrip('\n')
+		generated_rows.append((pert_gen_text, row.true_reviews))
+	generated_df = pd.DataFrame(data=generated_rows, columns=['explanations', 'true_reviews'])
+	generated_df.to_csv(os.path.join(dataset_path, 'generated_df.csv'), index=False)
+	return
 
 
 def get_classifier(
@@ -471,101 +559,22 @@ def set_generic_model_params(discrim_weights, discrim_meta):
 	DISCRIMINATOR_MODELS_PARAMS['generic'] = meta
 
 
-def run_pplm_example(
-		pretrained_model="gpt2-medium",
-		discrim="generic",
-		discrim_weights="./saved_models/generator.pt",
-		discrim_meta="./saved_models/generator_meta.json",
-		dataset_path="./data",
-		rrca_weights="./saved_models/rrca.bin",
-		length=50,
-		stepsize=0.02,
-		temperature=1.0,
-		top_k=10,
-		sample=True,
-		num_iterations=3,
-		grad_length=10000,
-		horizon_length=1,
-		window_length=0,
-		decay=False,
-		gamma=1.5,
-		gm_scale=0.9,
-		kl_scale=0.01,
-		seed=0,
-		no_cuda=False,
-		dataset_name="AmazonDigitalMusic"
-):
-	# set Random seed
-	torch.manual_seed(seed)
-	np.random.seed(seed)
-
-	# set the device
-	device = "cuda" if torch.cuda.is_available() and not no_cuda else "cpu"
-	eos_token = '<|endoftext|>'
-
-	set_generic_model_params(discrim_weights, discrim_meta)
-	discriminator_pretrained_model = DISCRIMINATOR_MODELS_PARAMS[discrim]["pretrained_model"]
-
-	if pretrained_model != discriminator_pretrained_model:
-		pretrained_model = discriminator_pretrained_model
-
-	# load pretrained model
-	model = GPT2LMHeadModel.from_pretrained(pretrained_model, output_hidden_states=True).to(device)
-	model.eval()
-
-	# load tokenizer
-	tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model)
-
-	# Freeze GPT-2 weights
-	for param in model.parameters():
-		param.requires_grad = False
-
-	generated_rows = []
-	for idx, row in cond_df.iterrows():
-		class_label = row.predicted_ratings - 1
-		cond_text = row.candidate_reviews
-		tokenized_cond_text = tokenizer.encode(
-			tokenizer.bos_token + cond_text,
-			add_special_tokens=False
-		)
-
-		pert_gen_tok_texts = full_text_generation(
-			model=model,
-			tokenizer=tokenizer,
-			context=tokenized_cond_text,
-			device=device,
-			discrim=discrim,
-			class_label=class_label,
-			length=length,
-			stepsize=stepsize,
-			temperature=temperature,
-			top_k=top_k,
-			sample=sample,
-			num_iterations=num_iterations,
-			grad_length=grad_length,
-			horizon_length=horizon_length,
-			window_length=window_length,
-			decay=decay,
-			gamma=gamma,
-			gm_scale=gm_scale,
-			kl_scale=kl_scale
-		)
-		pert_gen_text = tokenizer.decode(pert_gen_tok_texts[0].tolist()[0])
-		pert_gen_text = pert_gen_text.splitlines()[0].lstrip(eos_token).split(eos_token, 1)[0].rstrip('\n')
-		generated_rows.append((pert_gen_text, row.true_reviews))
-	generated_df = pd.DataFrame(data=generated_rows, columns=['explanations', 'true_reviews'])
-	generated_df.to_csv(os.path.join(dataset_path, 'generated_df.csv'), index=False)
-	return
-
-
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--pretrained_model", "-M", type=str, default="gpt2-medium", help="pretrained model name")
 	parser.add_argument("--discrim", "-D", type=str, default="generic", choices="generic", help="Discriminator to use")
-	parser.add_argument("--dataset_path", type=str, default="./data", help="Root path of test_df")
-	parser.add_argument('--discrim_weights', type=str, default="./saved_models/generator.pt", help='Weights for discriminator')
-	parser.add_argument('--discrim_meta', type=str, default="./saved_models/generator_meta.json", help='Meta information for discriminator')
-	parser.add_argument('--rrca_weights', type=str, default="./saved_models/rrca.bin", help='Meta information for discriminator')
+	parser.add_argument(
+		"--dataset_path",
+		type=str,
+		default="./data",
+		help="Root path of dataset (do not include the dataset name)"
+	)
+	parser.add_argument(
+		'--models_path',
+		type=str,
+		default="./saved_models",
+		help='Root path where models are saved (do not include the dataset name)'
+	)
 	parser.add_argument("--length", type=int, default=50)
 	parser.add_argument("--num_reviews", type=int, default=15)
 	parser.add_argument("--stepsize", type=float, default=0.02)
@@ -591,5 +600,11 @@ if __name__ == '__main__':
 	)
 
 	args = parser.parse_args()
+	root_model_path = os.path.join(args.models_path, args.dataset_name)
+	args.rrca_weights = os.path.join(root_model_path, 'rrca.pt')
+	args.discrim_weights = os.path.join(root_model_path, 'generator.pt')
+	args.discrim_meta = os.path.join(root_model_path, 'generator_meta.json')
+	args.dataset_path = os.path.join(args.dataset_path, args.dataset_name)
+
 	cond_df = create_cond_df(args.dataset_name, args.dataset_path, args.rrca_weights, args.num_reviews)
-	# run_pplm_example(**vars(args))
+	run_pplm_example(**vars(args))
