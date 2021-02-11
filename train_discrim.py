@@ -510,7 +510,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description="Train a discriminator on top of GPT-2 representations")
 	parser.add_argument("--dataset_fp", type=str, default="./data", help=".tsv path dataset.")
 	parser.add_argument("--pretrained_model", type=str, default="gpt2-medium", help="Pretrained model to use as encoder")
-	parser.add_argument("--epochs", type=int, default=2, metavar="N", help="Number of training epochs")
+	parser.add_argument("--epochs", type=int, default=5, metavar="N", help="Number of training epochs")
 	parser.add_argument("--learning_rate", type=float, default=0.002, help="Learning rate")
 	parser.add_argument("--batch_size", type=int, default=64, metavar="N", help="input batch size for training")
 	parser.add_argument("--log_interval", type=int, default=10, metavar="N", help="Logging training status")
