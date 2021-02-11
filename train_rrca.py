@@ -169,4 +169,8 @@ if __name__ == "__main__":
 		help="Name of the dataset to use."
 	)
 	args = parser.parse_args()
+
+	root_path = os.path.join("./data", dataset_name)
+	if not os.path.exists(root_path):
+		os.makedirs(root_path)
 	train_rrca(**(vars(args)))
