@@ -15,7 +15,7 @@ Preprocessing currently downloads the already preprocessed splits and files need
 **1. Training RRCA.**
 For smaller datasets like Digital Music and Clothing, the training takes around 50-100 epochs. For larger datasets like BeerAdvocate and Yelp, training takes ~30 epochs. The code maintains a patience of 15 epochs.
 
-`python train_rrca --dataset_name="AmazonDigitalMusic" --batch_size_rrca=256 --learning_rate_rrca=0.002 --num_epochs_rrca=150`
+`python train_rrca.py --dataset_name="AmazonDigitalMusic" --batch_size_rrca=256 --learning_rate_rrca=0.002 --num_epochs_rrca=150`
 
 **2. Training Discriminator.**
 The following command trains the discriminator. 2-3 epochs usually suffice.
