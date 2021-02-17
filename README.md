@@ -22,7 +22,7 @@ The following command trains the discriminator. 2-3 epochs usually suffice.
 #### Generating Reviews
 The following command generates reviews from the trained ReXPlug.
 
-`python test.py --length=150 --num_iterations=1 --temperature=1 --sample --gamma=1 --gm_scale=0.875 --kl_scale=0.01`
+`python test.py --length=150 --num_iterations=1 --temperature=1 --sample --gamma=1 --gm_scale=0.875 --kl_scale=0.01 --num_reviews=5`
 
 ------------
 
