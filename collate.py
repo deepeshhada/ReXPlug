@@ -1,6 +1,8 @@
 import torch
 import numpy as np
+
 np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
+TRUNCATE_LEN = 30
 
 
 class CollateTest:
@@ -32,10 +34,10 @@ class CollateTest:
 		bsz = len(batch)
 		users = [elements[0] for elements in batch]
 		items = [elements[1] for elements in batch]
-		targets = [elements[2] for elements in batch]
+		ratings = [elements[2] for elements in batch]
 
-		user_review_list = [np.array(self.user_reviews_dict[user]) for user in users]
-		item_review_list = np.array([np.array(self.item_reviews_dict[item]) for item in items])
+		user_review_list = np.array([np.array(self.user_reviews_dict[user])[:TRUNCATE_LEN] for user in users])
+		item_review_list = np.array([np.array(self.item_reviews_dict[item])[:TRUNCATE_LEN] for item in items])
 
 		user_reviews, user_key_mask = self.stack_and_pad(user_review_list, bsz)
 		item_reviews, item_key_mask = self.stack_and_pad(item_review_list, bsz)
@@ -43,9 +45,9 @@ class CollateTest:
 		users = torch.tensor(users, dtype=torch.long)
 		items = torch.tensor(items, dtype=torch.long)
 		reviews = torch.zeros(1)
-		targets = torch.tensor(targets, dtype=torch.float)
+		ratings = torch.tensor(ratings, dtype=torch.float)
 
-		return users, items, reviews, targets, user_reviews, item_reviews, user_key_mask, item_key_mask
+		return users, items, reviews, ratings, user_reviews, item_reviews, user_key_mask, item_key_mask
 
 
 class CollateTrain:
@@ -69,10 +71,14 @@ class CollateTrain:
 			pad = torch.zeros([pad_length, 512])
 			key_mask[idx] = self.get_key_mask(max_length, pad_length)
 			mask = true_reviews[idx].numpy()
+			true_review_flag = False
 			for i, review in enumerate(reviews):
 				if (mask == review).all():
+					true_review_flag = True
 					reviews = np.delete(reviews, i, axis=0)
 					break
+			if not true_review_flag:
+				reviews = np.delete(reviews, TRUNCATE_LEN-1, axis=0)
 			reviews = torch.cat([torch.from_numpy(reviews), pad])
 			review_tensor[idx] = reviews
 		return review_tensor, key_mask.bool()
@@ -82,10 +88,10 @@ class CollateTrain:
 		users = [elements[0] for elements in batch]
 		items = [elements[1] for elements in batch]
 		reviews = [torch.from_numpy(elements[2]) for elements in batch]
-		targets = [elements[3] for elements in batch]
+		ratings = [elements[3] for elements in batch]
 
-		user_review_list = [np.array(self.user_reviews_dict[user]) for user in users]
-		item_review_list = np.array([np.array(self.item_reviews_dict[item]) for item in items])
+		user_review_list = np.array([np.array(self.user_reviews_dict[user])[:TRUNCATE_LEN] for user in users])
+		item_review_list = np.array([np.array(self.item_reviews_dict[item])[:TRUNCATE_LEN] for item in items])
 
 		user_reviews, user_key_mask = self.stack_and_pad(user_review_list, reviews, bsz)
 		item_reviews, item_key_mask = self.stack_and_pad(item_review_list, reviews, bsz)
@@ -93,6 +99,6 @@ class CollateTrain:
 		users = torch.tensor(users, dtype=torch.long)
 		items = torch.tensor(items, dtype=torch.long)
 		reviews = torch.stack(reviews, dim=0)
-		targets = torch.tensor(targets, dtype=torch.float)
+		ratings = torch.tensor(ratings, dtype=torch.float)
 
-		return users, items, reviews, targets, user_reviews, item_reviews, user_key_mask, item_key_mask
+		return users, items, reviews, ratings, user_reviews, item_reviews, user_key_mask, item_key_mask
