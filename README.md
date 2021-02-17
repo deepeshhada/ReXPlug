@@ -20,7 +20,7 @@ For smaller datasets like Digital Music and Clothing, the training takes around 
 **2. Training Discriminator.**
 The following command trains the discriminator. 2-3 epochs usually suffice.
 
-`python train_discrim.py --dataset_name="AmazonDigitalMusic" --pretrained_model=gpt2-medium --batch_size=64 --learning_rate=0.002 --epochs=3`
+`python train_discrim.py --dataset_name="AmazonDigitalMusic" --pretrained_model="gpt2-medium" --batch_size=64 --learning_rate=0.002 --epochs=3`
 
 ------------
 #### Generating Reviews
