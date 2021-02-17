@@ -69,6 +69,7 @@ def train_rrca(
 	val_df = pd.read_csv(os.path.join(dataset_path, 'val_df.csv'))
 	test_df = pd.read_csv(os.path.join(dataset_path, 'test_df.csv'))
 	print(f"Train size: {len(train_df)} | Val size: {len(val_df)} | Test size: {len(test_df)}")
+	print("Creating data loaders...")
 
 	true_embeddings = get_embeddings(dataset_path)
 	user_reviews_dict, item_reviews_dict = create_reviews_lists(train_df, true_embeddings)
@@ -97,6 +98,8 @@ def train_rrca(
 		collate_fn=CollateTest(user_reviews_dict, item_reviews_dict)
 	)
 
+	print("Creating RRCA modules...")
+
 	review_regularizer = ReviewRegularizer(num_factors=num_factors).to(device)
 	cross_attention_module = CrossAttention(embed_dim=embed_dim, sentence_embed_dim=sentence_embed_dim).to(device)
 	model = RatingPredictor(
@@ -117,6 +120,8 @@ def train_rrca(
 	PATIENCE = 15
 	patience = PATIENCE
 	best_val_mse, best_model = 100, None
+	print("Training...")
+	print("=" * 80)
 
 	for epoch in range(1, num_epochs_rrca + 1):
 		if patience == 0:
@@ -147,8 +152,9 @@ def train_rrca(
 		print("=" * 80)
 
 	print('RRCA trained. Evaluating on the test set.')
+	print("-" * 80)
 	test_mse, test_mae = evaluate(best_model, test_loader, device)
-	print(f"Test MSE: {test_mse} | Test MAE: {test_mae}")
+	print(f"Test MSE: {test_mse:.4f} | Test MAE: {test_mae:.4f}")
 	print("=" * 80)
 	return
 
@@ -159,7 +165,7 @@ if __name__ == "__main__":
 	parser.add_argument("--model_save_path", type=str, default="./saved_models", help="Root path to save RRCA's model.")
 	parser.add_argument("--model", type=str, default="rrca", help="Choose from 'rrca' or 'rr'.")
 	parser.add_argument("--batch_size_rrca", type=int, default=256, help="Batch size to train RRCA.")
-	parser.add_argument("--learning_rate_rrca", type=int, default=0.002, help="Learning rate for RRCA.")
+	parser.add_argument("--learning_rate_rrca", type=float, default=0.002, help="Learning rate for RRCA.")
 	parser.add_argument("--num_epochs_rrca", type=int, default=150, help="Number of epochs to train RRCA.")
 	parser.add_argument(
 		"--dataset_name",
