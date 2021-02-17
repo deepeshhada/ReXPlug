@@ -1,10 +1,6 @@
 # ReXPlug
 ## Explainable Recommendation using Plug and Play Language Model
 
-A Jupyter notebook is available for demonstration.
-
-------------
-
 #### Preprocessing
 Preprocessing currently downloads the already preprocessed splits and files needed for training ReXPlug. Following is an example:
 
