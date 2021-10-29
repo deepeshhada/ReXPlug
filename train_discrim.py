@@ -330,9 +330,8 @@ def train_discriminator(
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 	add_eos_token = pretrained_model.startswith("gpt2")
 
-	if save_model:
-		if not os.path.exists(output_fp):
-			os.makedirs(output_fp)
+	if not os.path.exists(output_fp):
+		os.makedirs(output_fp)
 	classifier_head_meta_fp = os.path.join(output_fp, "generator_meta.json")
 	classifier_head_fp_pattern = os.path.join(output_fp, "generator_epoch_{}.pt")
 
@@ -406,9 +405,8 @@ def train_discriminator(
 			collate_fn=collate_fn
 		)
 
-	if save_model:
-		with open(classifier_head_meta_fp, "w") as meta_file:
-			json.dump(discriminator_meta, meta_file)
+	with open(classifier_head_meta_fp, "w") as meta_file:
+		json.dump(discriminator_meta, meta_file)
 
 	optimizer = optim.Adam(discriminator.parameters(), lr=learning_rate)
 
@@ -450,8 +448,7 @@ def train_discriminator(
 		for i in range(5):
 			predict(example_sentences[i], discriminator, idx2class, cached=cached, device=device)
 
-		if save_model:
-			torch.save(discriminator.get_classifier().state_dict(), classifier_head_fp_pattern.format(epoch + 1))
+		torch.save(discriminator.get_classifier().state_dict(), classifier_head_fp_pattern.format(epoch + 1))
 
 	min_loss = float("inf")
 	min_loss_epoch = 0
