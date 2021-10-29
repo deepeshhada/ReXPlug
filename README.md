@@ -1,10 +1,10 @@
-# ReXPlug
+# ReXPlug (ACM SIGIR, 2021)
 ## Explainable Recommendation using Plug and Play Language Model
 
 #### Preprocessing
-Preprocessing currently downloads the already preprocessed splits and files needed for training ReXPlug. Following is an example:
+Preprocess the raw dataset in a form ReXPlug ingests. The raw dataset must be a JSON file with the same name as dataset_name and must be zipped in dataset_path. For example, AmazonDigitalMusic.json is zipped in the raw_datasets directory as AmazonDigitalMusic.zip. If you're using a non-Amazon dataset, please make sure that the JSON file has only four fields, namely, `'userId', 'itemId', 'review', 'rating'`, in that order. The `truncate_after` flag determines the number of interactions to be used for training the Discriminator.
 
-`python preprocess.py --dataset_name="AmazonDigitalMusic" --split_idx="1" --truncate_after=100000`
+`python preprocess.py --dataset_name="AmazonDigitalMusic" --dataset_path="./data/raw_datasets/AmazonDigitalMusic.zip" --seed=1234 --truncate_after=100000`
 
 ------------
 #### Training ReXPlug
