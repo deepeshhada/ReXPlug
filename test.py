@@ -308,8 +308,9 @@ def run_pplm_example(
 		pert_gen_text = pert_gen_text.splitlines()[0].lstrip(eos_token).split(eos_token, 1)[0].rstrip('\n')
 		generated_rows.append((pert_gen_text, row.true_reviews))
 	generated_df = pd.DataFrame(data=generated_rows, columns=['explanations', 'true_reviews'])
-	generated_df.to_csv(os.path.join(dataset_path, 'generated_df.csv'), index=False)
-	print('Generated Explanations!')
+	output_path = os.path.join("./outputs", dataset_name + '.csv')
+	generated_df.to_csv(output_path, index=False)
+	print(f'Generated explanations! The output file is {output_path}.')
 	return
 
 

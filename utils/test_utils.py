@@ -133,7 +133,7 @@ def create_cond_df(dataset_name, dataset_path, rrca_weights, num_reviews=10):
 				cnt += 1
 			except:
 				continue
-		print(f'Written {cnt} records.')
+		print(f'Written {cnt} records in the csv containing conditional sentences.')
 		df = pd.DataFrame(data=rows, columns=['true_reviews', 'true_ratings', 'candidate_reviews', 'predicted_ratings'])
 		df.to_csv(os.path.join(dataset_path, 'cond_df.csv'), index=False)
 	return df
