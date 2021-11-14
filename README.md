@@ -25,4 +25,13 @@ The following command generates reviews from the trained ReXPlug.
 `python test.py --length=50 --num_iterations=1 --temperature=1 --sample --gamma=1 --gm_scale=0.875 --kl_scale=0.01 --num_reviews=5`
 
 ------------
-
+#### Cite as
+```bib
+@InProceedings{Hada21,
+author = {Hada, Deepesh and M., Vijaikumar and Shevade, Shirish},
+title = {ReXPlug: Explainable Recommendation Using Plug-and-Play Language Model},
+booktitle = {Proceedings of the 44th International ACM SIGIR Conference on Research and Development in Information Retrieval},
+month = {July},
+year = {2021}
+}
+```
