@@ -35,3 +35,9 @@ month = {July},
 year = {2021}
 }
 ```
+
+------------
+#### YOU MAY ALSO LIKE
+- [HyperTeNet: Hypergraph and Transformer-based Neural Network for Personalized List Continuation](https://github.com/deepeshhada/HyperTeNet)
+
+------------
